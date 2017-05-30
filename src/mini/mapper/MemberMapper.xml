@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace ="mini.mapper.MemberMapper">
+
+<resultMap id="member-resultmap" type="mini.VO.Member">
+	<id column="member_id" property="memberId"/>
+	<result column="member_password" property="memberPassword"/>
+	<result column="member_name" property="memberName"/>
+	<result column="graduate_year" property="graduateYear"/>
+	<result column="school_no" property="schoolNo"/>
+	<result column="member_email" property="memberEmail"/>
+	<result column="member_gender" property="memberGender"/>
+</resultMap>
+
+<resultMap id="school-resultmap" type="highSchool">
+<id column="school_no" property="schoolNo"/>
+<result column="school_name" property="schoolName"/>
+<result column="address" property="address"/>
+<result column="road_address" property="roadAddress"/>
+</resultMap>
+
+
+	<resultMap type="member" id="member-school-resultMap" extends="member-resultmap">
+		<association property="highSchool" javaType="mini.VO.HighSchool">
+			<result property="schoolNo" column="school_no"/>
+			<result property="schoolName" column="school_name"/>
+			<result property="address" column="address"/>
+			<result property="roadAddress" column="road_address"/>
+		</association>
+	</resultMap>
+	
+<!-- 모두 넣어서 찾기 -->
+<select id="selectMemberByAll" parameterType="map" resultMap="member-school-resultMap">
+		SELECT h.school_no, 
+					h.school_name, 
+					h.address, 
+					h.road_address,
+					m.member_id, 
+					m.member_password,	
+					m.member_name, 
+					m.graduate_year, 
+					m.member_gender, 
+					m.member_email
+		FROM member m JOIN highSchool h ON m.school_no=h.school_no
+		WHERE h.school_name LIKE '%'||#{schoolName}||'%'
+		AND	m.member_gender = #{memberGender}
+		AND m.member_name LIKE '%'||#{memberName}||'%'
+		AND m.graduate_year = #{graduateYear}
+</select>
+
+<select id="selectMemberCountBySearch" parameterType="map" resultType="int">
+		SELECT COUNT(m.member_id)
+		FROM	 member m JOIN highSchool h ON m.school_no=h.school_no
+		WHERE h.school_name LIKE '%'||#{schoolName}||'%'
+		AND		m.member_gender = #{memberGender}
+		AND 		m.member_name LIKE '%'||#{memberName}||'%'
+		AND 		m.graduate_year = #{graduateYear}
+</select>	
+
+<!--paging 처리 -->
+<select id="selectMemberListPaging" parameterType="map" resultMap="member-school-resultMap">
+	SELECT 	school_no,
+					school_name, 
+					address, 
+					road_address,
+					member_id, 
+					member_password,	
+					member_name, 
+					graduate_year, 
+					member_gender, 
+					member_email
+	FROM(
+		SELECT rownum rnum,
+					school_no,
+					school_name, 
+					address, 
+					road_address,
+					member_id, 
+					member_password,	
+					member_name, 
+					graduate_year, 
+					member_gender, 
+					member_email
+					
+	FROM(
+		SELECT h.school_no, 
+					h.school_name, 
+					h.address, 
+					h.road_address,
+					m.member_id, 
+					m.member_password,	
+					m.member_name, 
+					m.graduate_year, 
+					m.member_gender, 
+					m.member_email
+		FROM 	member m JOIN highSchool h ON m.school_no=h.school_no
+		WHERE h.school_name LIKE '%'||#{schoolName}||'%'
+		AND		m.member_gender = #{memberGender}
+		AND 		m.member_name LIKE '%'||#{memberName}||'%'
+		AND 		m.graduate_year = #{graduateYear}
+		ORDER BY m.graduate_year DESC
+		)
+		WHERE rownum &lt; = #{endIndex}
+		)
+		WHERE rnum >= #{startIndex}
+
+</select>
+
+
+
+<!-- insert -->
+	<insert id="insertMember" parameterType="member">
+		INSERT INTO member VALUES(	#{memberId},
+									#{memberPassword},
+									#{memberName},
+									#{graduateYear},
+									#{memberEmail},
+									#{memberGender},
+									#{schoolNo}
+								)
+	</insert>
+
+	<!-- delete -->
+	<delete id="deleteMember" parameterType="string">
+		DELETE FROM member
+		WHERE member_id=#{loginId}
+	</delete>
+	
+	
+	
+	<sql id="select-member">
+		SELECT	member_id,
+				member_password,
+				member_name,
+				graduate_year,
+				member_email,
+				member_gender,
+				school_no
+		FROM member
+	</sql>
+
+	
+	<!-- Update -->
+	<update id="updateMember" parameterType="member">
+		UPDATE member
+			SET member_id=#{memberId},
+				member_password=#{memberPassword},
+				member_name=#{memberName},
+				graduate_year=#{graduateYear},
+				member_email=#{memberEmail},
+				member_gender=#{memberGender},
+				school_no=#{schoolNo}
+		WHERE member_id=#{memberId}
+	</update>
+	
+	<!-- 전체 조회 -->
+	<select id="selectMemberList" resultMap="member-resultmap">
+		<include refid="select-member"/>
+	</select>
+	
+	<!-- ID로 조회 -->
+	<select  id="selectMemberById" resultMap="member-resultmap" parameterType="string">
+		<include refid="select-member"/>
+		WHERE member_id=#{memberId}
+	</select>
+	
+	<!-- 이름으로 조회 -->
+	<select id="selectMemberByName" resultMap="member-resultmap" parameterType="string">
+		<include refid="select-member"/>
+		WHERE member_name=#{memberName}
+	</select>
+	
+	<!-- id, 패스워드로 조회 -->
+	<select id="selectMemberByIdAndPwd" resultMap="member-resultmap" parameterType="hashmap">
+		<include refid="select-member"/>
+		WHERE member_id=#{loginId} AND member_password=#{loginPwd}
+	</select>
+	
+	<!-- 이메일로 조회 -->
+	<select id="selectMemberByEmail" resultMap="member-resultmap" parameterType="string">
+		<include refid="select-member"/>
+		WHERE member_email=#{membeEmail}
+	</select>
+	
+	<!-- 아이디와 이메일로 조회 -->
+	<select id="selectMemberByIdAndEmail" resultMap="member-resultmap" parameterType="string">
+		<include refid="select-member"/>
+		WHERE member_id=#{memberId} AND member_email=#{memberEmail}
+	</select>
+	
+	<!-- 아이디 중복체크 -->
+	<select id="checkIdDuplicate" resultMap="member-resultmap" parameterType="string">
+		<include refid="select-member"/>
+		WHERE member_id=#{value}
+	</select>
+	
+	<!-- 이메일 중복체크 -->
+	<select id="checkEmailDuplicate" resultMap="member-resultmap" parameterType="string">
+		<include refid="select-member"/>
+		WHERE member_email=#{memberEmail}
+	</select>
+</mapper>

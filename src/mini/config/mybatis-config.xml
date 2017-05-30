@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE configuration PUBLIC "-//mybatis.org//DTD Config 3.0//EN" "http://mybatis.org/dtd/mybatis-3-config.dtd" >
+<configuration>
+	<settings>
+		<setting name ="jdbcTypeForNull" value="NULL"/>
+	</settings>
+	<typeAliases>
+		<package name = "mini.VO"/>
+	</typeAliases>
+	
+	<environments default="dev">
+		<environment id = "dev">
+			<transactionManager type="JDBC" />
+			<dataSource type="POOLED">
+				<property name="driver" value="oracle.jdbc.driver.OracleDriver" />
+				<property name="url" value="jdbc:oracle:thin:@127.0.0.1:1521:XE" />
+				<property name="username" value="find" />
+				<property name="password" value="friend" />
+				<property name="poolMaximumActiveConnections" value="100" />
+			</dataSource>
+		</environment>
+	</environments>
+	<mappers>
+		<mapper resource="mini/mapper/MessageMapper.xml"/>
+		<mapper resource="mini/mapper/MemberMapper.xml"/>
+		<mapper resource="mini/mapper/boardMapper.xml"/>
+		<mapper resource="mini/mapper/highSchoolMapper.xml"/>
+		<mapper resource="mini/mapper/replyMapper.xml"/>
+		
+	</mappers>
+</configuration>

@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="mini.mapper.replyMapper">
+	
+	<insert id="insertReply" parameterType="reply">
+		<selectKey keyProperty="replyNo" resultType="_int" order="BEFORE">
+			select reply_no_seq.nextval from dual
+		</selectKey>
+		insert into reply values(#{replyNo}, #{replyContent}, #{replyDate}, #{boardNo}, #{memberId})
+	</insert>
+	
+	<resultMap type="reply" id="reply-resultmap">
+		<result column="reply_no" property="replyNo"/>
+		<result column="reply_content" property="replyContent"/>
+		<result column="reply_date" property="replyDate"/>
+		<result column="board_no" property="boardNo"/>
+		<result column="member_id" property="memberId"/>
+	</resultMap>
+	
+	<sql id="select-reply">
+		select reply_no,
+			   reply_content,
+			   reply_date,
+			   board_no,
+			   member_id
+		from reply
+	</sql>
+	
+	<select id="selectReplyByBoardNo" parameterType="_int" resultMap="reply-resultmap">
+		<include refid="select-reply"/>
+		where board_no = #{value}
+		order by reply_no asc
+	</select>
+	
+	<update id="updateReply" parameterType="reply">
+		update reply set
+			   	   	   reply_content = #{replyContent},
+			   		   reply_date = #{replyDate},
+			   		   board_no = #{boardNo},
+			   		   member_id = #{memberId}
+				where  reply_no = #{replyNo}
+	</update>
+	
+	<delete id="deleteReply" parameterType="_int">
+		delete from reply where reply_no = #{value}
+	</delete>
+	
+	<select id="selectReplyCount" resultType="_int">
+		select count(reply_no) 
+		from reply 
+		group by board_no
+		order by board_no desc
+	</select>
+</mapper>

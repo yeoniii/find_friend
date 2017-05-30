@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="mini.mapper.boardMapper">
+	
+	<!-- INSERT -->
+	<insert id="insertBoard" parameterType="board">
+		<selectKey keyProperty="boardNo" resultType="_int" order="BEFORE">
+			SELECT board_no_seq.nextval FROM dual
+		</selectKey>
+		INSERT INTO board VALUES (
+										#{boardNo},
+										#{boardTitle},
+										#{boardContent},
+										#{boardDate},
+										#{boardHits},
+										#{memberId}
+									)
+	</insert>
+
+	<!-- UPDATE -->
+	<update id="updateBoard" parameterType="board">
+		UPDATE 	board
+		SET		board_title = #{boardTitle},
+				board_content = #{boardContent},
+				board_date = #{boardDate},
+				board_hits = #{boardHits},
+				member_id = #{memberId}
+		WHERE	board_no = #{boardNo}
+	</update>	
+	
+	<!-- DELETE -->
+	
+
+	<!-- SELECT -->
+	<resultMap type="board" id="board-resultmap">
+		<result column="board_no" property="boardNo"/>
+		<result column="board_title" property="boardTitle"/>
+		<result column="board_content" property="boardContent"/>
+		<result column="board_date" property="boardDate"/>
+		<result column="board_hits" property="boardHits"/>
+		<result column="member_id" property="memberId"/>
+		<result column="cnt" property="replyCount"/>
+	</resultMap>
+	
+	<!-- 전체 조회 -->
+	<select id="selectAllBoard" parameterType="hashmap" resultMap="board-resultmap">
+		<![CDATA[
+			SELECT board_no, board_title, board_content, board_date, board_hits, member_id, cnt
+			FROM (
+				SELECT rownum rnum, board_no, board_content, board_title, board_date, board_hits, member_id, cnt
+				FROM (
+					SELECT b.board_no, b.board_content, b.board_title, b.board_date, b.board_hits, b.member_id, count(r.reply_no) cnt
+					FROM board b, reply r
+					where r.board_no(+) = b.board_no
+					group by b.board_no, b.board_title, b.board_content, b.board_date, b.board_hits, b.member_id
+					ORDER BY b.board_no DESC
+				)
+				WHERE rownum <= #{endItemNum}
+			)
+			WHERE rnum >= #{beginItemNum}
+		]]>
+	</select>
+
+	<!-- 제목, 내용, id로 조회 -->
+	<select id="selectBoardByMethod" parameterType="hashmap" resultMap="board-resultmap">
+		
+		<choose>
+			<when test="method == 'title'">
+			<![CDATA[
+				SELECT board_no, board_title, board_content, board_date, board_hits, member_id, cnt
+				FROM (
+					SELECT rownum rnum, board_no, board_title, board_content, board_date, board_hits, member_id, cnt
+					FROM (
+						SELECT b.board_no, b.board_title, b.board_content, b.board_date, b.board_hits, b.member_id, count(r.reply_no) cnt
+						FROM board b, reply r
+						WHERE b.board_no = r.board_no(+) and b.board_title LIKE '%'||#{methodContent}||'%'
+						group by b.board_no, b.board_title, b.board_content, b.board_date, b.board_hits, b.member_id
+						ORDER BY b.board_no DESC
+					)
+					WHERE rownum <= #{endItemNum} 
+				)
+				WHERE rnum >= #{beginItemNum}
+			]]>
+				
+			</when>
+			<when test="method == 'content'">
+			<![CDATA[
+				SELECT board_no, board_title, board_content, board_date, board_hits, member_id, cnt
+				FROM (
+					SELECT rownum rnum, board_no, board_title, board_content, board_date, board_hits, member_id, cnt
+					FROM (
+						SELECT b.board_no, b.board_title, b.board_content, b.board_date, b.board_hits, b.member_id, count(r.reply_no) cnt
+						FROM board b, reply r
+						WHERE b.board_no = r.board_no(+) and b.board_content LIKE '%'||#{methodContent}||'%'
+						group by b.board_no, b.board_title, b.board_content, b.board_date, b.board_hits, b.member_id
+						ORDER BY b.board_no DESC
+					)
+					WHERE rownum <= #{endItemNum} 
+				)
+				WHERE rnum >= #{beginItemNum}
+			]]>
+			</when>
+		
+			<otherwise>
+			<![CDATA[
+				SELECT board_no, board_title, board_content, board_date, board_hits, member_id, cnt
+				FROM (
+					SELECT rownum rnum, board_no, board_title, board_content, board_date, board_hits, member_id, cnt
+					FROM (
+						SELECT b.board_no, b.board_title, b.board_content, b.board_date, b.board_hits, b.member_id, count(r.reply_no) cnt
+						FROM board b, reply r
+						WHERE b.board_no = r.board_no(+) and b.member_id = #{methodContent}
+						group by b.board_no, b.board_title, b.board_content, b.board_date, b.board_hits, b.member_id
+						ORDER BY b.board_no DESC
+					)
+					WHERE rownum <= #{endItemNum} 
+				)
+				WHERE rnum >= #{beginItemNum}
+			]]>
+			</otherwise>
+		</choose>
+	</select>
+	
+	
+	<!-- 내 게시글 조회 -->
+	<select id="selectMyBoard" parameterType="hashmap" resultMap="board-resultmap">
+	<![CDATA[
+			SELECT board_no, board_title, board_content, board_date, board_hits, member_id, cnt
+			FROM (
+				SELECT rownum rnum, board_no, board_title, board_content, board_date, board_hits, member_id, cnt
+				FROM (
+					SELECT b.board_no, b.board_title, b.board_content, b.board_date, b.board_hits, b.member_id, count(r.reply_no) cnt
+					FROM board b, reply r
+					WHERE r.board_no(+) = b.board_no and b.member_id = #{writer}
+					group by b.board_no, b.board_title, b.board_content, b.board_date, b.board_hits, b.member_id
+					ORDER BY b.board_no DESC
+				)
+				WHERE rownum <= #{endItemNum}
+			)
+			WHERE rnum >= #{beginItemNum}
+		]]>
+	</select>
+	
+	<!-- 게시글 수 조회 -->
+	<select id="selectItemCount" resultType="_int">
+		SELECT COUNT(board_no)
+		FROM board
+	</select>
+	
+	<!-- 조회 방법에 따른 게시글 수 조회 -->
+	<select id="selectItemCountByMethod" parameterType="hashmap" resultType="_int">
+		<choose>
+			<when test="method == 'title'">
+			<![CDATA[
+				SELECT COUNT(board_no)
+				FROM board
+				WHERE board_title LIKE '%'||#{methodContent}||'%'
+			]]>
+				
+			</when>
+			<when test="method == 'content'">
+			<![CDATA[
+				SELECT COUNT(board_no)
+				FROM board
+				WHERE board_content LIKE '%'||#{methodContent}||'%'
+			]]>
+			</when>
+			
+			<otherwise>
+			<![CDATA[
+				SELECT COUNT(board_no)
+				FROM board
+				WHERE member_id = #{methodContent}
+			]]>
+			</otherwise>
+		
+		</choose>
+	</select>
+	
+	<sql id="select-board">
+		select board_no, 
+			   board_title,
+			   board_content,
+			   board_date,
+			   board_hits,
+			   member_id
+		from board
+	</sql>
+	<select id="selectBoardByBoardNo" parameterType="_int" resultMap="board-resultmap">
+		<include refid="select-board"/>
+		where board_no = #{value}
+	</select>
+	
+	<delete id="deleteBoard" parameterType="_int">
+		delete from board where board_no = #{value}
+	</delete>
+</mapper>

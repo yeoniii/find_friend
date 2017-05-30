@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="mini.mapper.MessageMapper">
+
+<!-- 
+	message_state 값 사용시,
+		0 : 쪽지 받은 사람이 읽지 않음 (이 값 이외에는 모두 읽은 것으로 처리)
+		1 : 쪽지 받은 사람이 읽음
+		2 : 쪽지 보낸 사람이 자신의 보낸 쪽지함에서 삭제
+		3 : 쪽지 받은 사람이 자신의 받은 쪽지함에서 삭제
+		4 : 쪽지 보낸&받은 사람이 모두 삭제 -> 관리자모드일 때, database에서 삭제할 때 사용 가능 -> 여기선 구현 안함
+-->
+
+<resultMap id="message-resultmap" type="message">
+	<id column="message_no" property="messageNo"/>
+	<result column="send_date" property="sendDate"/>
+	<result column="title" property="title"/>
+	<result column="content" property="content"/>
+	<result column="message_state" property="messageState"/>
+	<result column="send_id" property="sendId"/>
+	<result column="receive_id" property="receiveId"/>
+</resultMap>
+
+<resultMap id="member-resultmap" type="member">
+	<id column="member_id" property="memberId"/>
+	<result column="member_password" property="memberPassword"/>
+	<result column="member_name" property="memberName"/>
+	<result column="graduate_year" property="graduateYear"/>
+	<result column="school_no" property="schoolNo"/>
+	<result column="member_email" property="memberEmail"/>
+	<result column="member_gender" property="memberGender"/>
+</resultMap>
+
+<resultMap id="message-member-resultmap" type="message" extends="message-resultmap">
+	<association property="member" javaType="mini.VO.Member">
+		<result column="member_id" property="memberId"/>
+		<result column="member_password" property="memberPassword"/>
+		<result column="member_name" property="memberName"/>
+		<result column="graduate_year" property="graduateYear"/>
+		<result column="school_no" property="schoolNo"/>
+		<result column="member_email" property="memberEmail"/>
+		<result column="member_gender" property="memberGender"/>
+	</association>
+</resultMap>
+
+<!-- reply message 등록 -->
+<insert id="insertReplyMessage" parameterType="message">
+	<selectKey resultType="int" keyProperty="messageNo" order="BEFORE">
+		SELECT MESSAGE_NO_SEQ.nextval FROM dual
+	</selectKey>
+	INSERT INTO message VALUES (#{messageNo}, #{sendDate}, #{title}, #{content}, #{messageState}, #{sendId}, #{receiveId})
+
+</insert>
+
+<!-- 받은 message 조회 -->
+<select id="selectReceiveMessage" parameterType="string" resultMap="message-member-resultmap">
+	SELECT s.message_no, s.send_date, s.title, s.content, s.message_state, s.send_id, s.receive_id, m.member_name
+	FROM message s JOIN member m ON s.send_id = m.member_id
+	WHERE s.receive_id = #{value}
+	ORDER BY s.message_no DESC
+	</select> 
+
+<!-- 보낸 message 조회 -->
+ <select id="selectSendMessage" parameterType="string" resultMap="message-member-resultmap">
+	SELECT s.message_no, s.send_date, s.title, s.content, s.message_state, s.send_id, s.receive_id, m.member_name
+	FROM message s JOIN member m ON s.receive_id = m.member_id
+	WHERE s.send_id = #{value}
+	ORDER BY s.message_no DESC
+</select> 
+
+<!-- 쪽지를 보낸 사람의 이름으로 message 조회하기 --> 
+<select id="selectMessageByName" parameterType="hashmap" resultMap="message-member-resultmap">
+	SELECT s.message_no, s.send_date, s.title, s.content, s.message_state, s.send_id, s.receive_id, m.member_name
+	FROM message s JOIN member m ON s.send_id = m.member_id
+	WHERE s.receive_id = #{id} AND m.member_name LIKE '%'||#{text}||'%'
+	ORDER BY s.message_no DESC
+</select>
+
+<!-- 받은 쪽지의 제목으로 message 조회하기 -->
+<select id="selectReceiveByTitle" parameterType="hashmap" resultMap="message-member-resultmap">
+	SELECT s.message_no, s.send_date, s.title, s.content, s.message_state, s.send_id, s.receive_id, m.member_name
+	FROM message s JOIN member m ON s.send_id = m.member_id
+	WHERE s.receive_id = #{id} AND title LIKE '%'||#{text}||'%'
+	ORDER BY s.message_no DESC
+</select>
+
+<!-- 받은 쪽지의 내용으로 message 조회하기 -->
+<select id="selectReceiveByContent" parameterType="hashmap" resultMap="message-member-resultmap">
+	SELECT s.message_no, s.send_date, s.title, s.content, s.message_state, s.send_id, s.receive_id, m.member_name
+	FROM message s JOIN member m ON s.send_id = m.member_id
+	WHERE s.receive_id = #{id} AND content LIKE '%'||#{text}||'%'
+	ORDER BY s.message_no DESC
+</select>
+
+<!-- 받은 쪽지의 전체 message 보기 -->
+<select id="viewReceiveMsg" parameterType="hashmap" resultMap="message-member-resultmap">
+	SELECT s.message_no, s.send_date, s.title, s.content, s.message_state, s.send_id, s.receive_id, m.member_name
+	FROM message s JOIN member m ON s.send_id = m.member_id
+	WHERE s.receive_id = #{id} AND s.message_no = #{message_no}
+	ORDER BY s.message_no DESC
+</select>
+
+<!-- 보낸 쪽지의 전체 message 보기 --> 
+<select id="viewSendMsg" parameterType="hashmap" resultMap="message-member-resultmap">
+	SELECT s.message_no, s.send_date, s.title, s.content, s.message_state, s.send_id, s.receive_id, m.member_name
+	FROM message s JOIN member m ON s.receive_id = m.member_id
+	WHERE s.send_id = #{id} AND s.message_no = #{message_no}
+	ORDER BY s.message_no DESC
+</select>
+
+<!-- 쪽지 받은 사람이 읽었을 때, 읽지않음 -> 읽음 상태로 전환 -->
+<update id="updateMsgState" parameterType="hashmap">
+	UPDATE message
+	SET message_state = 1
+	WHERE message_no = #{message_no}
+</update>
+
+<!-- 보낸 쪽지함에서 삭제할 때 -->
+<update id="deleteSendMessage" parameterType="hashmap">
+	UPDATE message
+	SET message_state = 2
+	WHERE message_no = #{message_no}
+</update>
+
+<!-- 받은 쪽지함에서 삭제할 때 -->
+<update id="deleteReceiveMessage" parameterType="hashmap">
+	UPDATE message
+	SET message_state = 3
+	WHERE message_no = #{message_no}
+</update>
+
+<!-- 쪽지 보내기 -->
+<insert id="insertMessage" parameterType="message">
+	<selectKey resultType="int" keyProperty="messageNo" order="BEFORE">
+		SELECT MESSAGE_NO_SEQ.nextval FROM dual
+	</selectKey>
+	INSERT INTO message VALUES (#{messageNo}, #{sendDate}, #{title}, #{content}, #{messageState}, #{sendId}, #{receiveId})
+</insert>
+
+<!-- 쪽지를 보낸 사람의 이름으로 message 조회하기 --> 
+<select id="selectSendMessageByName" parameterType="hashmap" resultMap="message-member-resultmap">
+	SELECT s.message_no, s.send_date, s.title, s.content, s.message_state, s.send_id, s.receive_id, m.member_name
+	FROM message s JOIN member m ON s.receive_id = m.member_id
+	WHERE s.send_id = #{id} AND m.member_name LIKE '%'||#{text}||'%'
+	ORDER BY s.message_no DESC
+</select>
+
+<!-- 받은 쪽지의 제목으로 message 조회하기 -->
+<select id="selectSendReceiveByTitle" parameterType="hashmap" resultMap="message-member-resultmap">
+	SELECT s.message_no, s.send_date, s.title, s.content, s.message_state, s.send_id, s.receive_id, m.member_name
+	FROM message s JOIN member m ON s.receive_id = m.member_id
+	WHERE s.send_id = #{id} AND title LIKE '%'||#{text}||'%'
+	ORDER BY s.message_no DESC
+</select>
+
+<!-- 받은 쪽지의 내용으로 message 조회하기 -->
+<select id="selectSendReceiveByContent" parameterType="hashmap" resultMap="message-member-resultmap">
+	SELECT s.message_no, s.send_date, s.title, s.content, s.message_state, s.send_id, s.receive_id, m.member_name
+	FROM message s JOIN member m ON s.receive_id = m.member_id
+	WHERE s.send_id = #{id} AND content LIKE '%'||#{text}||'%'
+	ORDER BY s.message_no DESC
+</select>
+
+</mapper>
